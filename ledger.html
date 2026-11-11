@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>우리집 가계부</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--text:#1d1f23;--sub:#6b7280;--accent:#2563eb;--red:#dc2626;--line:#e5e7eb}
+@media (prefers-color-scheme: dark){:root{--bg:#111318;--card:#1b1e26;--text:#eceef3;--sub:#9aa1ad;--accent:#60a5fa;--red:#f87171;--line:#2a2f3a}}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,"Apple SD Gothic Neo",sans-serif;background:var(--bg);color:var(--text);padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
+main{max-width:520px;margin:0 auto;padding:16px}
+h1{font-size:20px;margin:8px 0 12px}
+nav{display:flex;gap:6px;margin-bottom:10px}
+nav button{flex:1;padding:10px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:10px;font-size:14px}
+nav button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+label{display:block;font-size:13px;color:var(--sub);margin:8px 0 4px}
+input,select,textarea{width:100%;padding:10px;font-size:16px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--text)}
+textarea{min-height:80px;font-size:14px}
+.btn{width:100%;padding:12px;margin-top:10px;border:0;border-radius:10px;background:var(--accent);color:#fff;font-size:15px}
+.btn.ghost{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+.btn.small{width:auto;padding:4px 10px;margin:0;font-size:12px}
+.row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px;gap:8px}
+.row:last-child{border-bottom:0}
+.sub{color:var(--sub);font-size:12px}
+.neg{color:var(--red)}
+.bar{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin-top:4px}
+.bar>div{height:100%;background:var(--accent)}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<main>
+  <h1>우리집 가계부</h1>
+
+  <div class="card">
+    <label>조회 월</label>
+    <input type="month" id="monthPick">
+  </div>
+
+  <nav>
+    <button data-t="input" class="on" onclick="show('input')">입력</button>
+    <button data-t="list" onclick="show('list')">내역</button>
+    <button data-t="summary" onclick="show('summary')">요약</button>
+    <button data-t="assets" onclick="show('assets')">자산</button>
+  </nav>
+
+  <!-- 입력 -->
+  <section id="input">
+    <div class="card">
+      <label>승인 문자 붙여넣기 (또는 단축어 자동 전달)</label>
+      <textarea id="sms" placeholder="카드 승인 문자 내용을 붙여넣으세요"></textarea>
+      <button class="btn ghost" onclick="fillFromSms()">문자로 채우기</button>
+      <div class="sub" style="margin-top:6px">자동으로 채워진 내용은 저장 전에 꼭 확인하세요. 문자 원문은 저장하지 않습니다.</div>
+    </div>
+    <div class="card">
+      <label>날짜</label>
+      <input type="date" id="f_date">
+      <label>금액 (취소·환불은 음수)</label>
+      <input type="number" id="f_amount" inputmode="numeric">
+      <label>가맹점</label>
+      <input id="f_merchant">
+      <label>카테고리</label>
+      <select id="f_cat"></select>
+      <label>메모</label>
+      <input id="f_memo">
+      <button class="btn" onclick="saveForm()">저장</button>
+    </div>
+  </section>
+
+  <!-- 내역 -->
+  <section id="list" class="hidden">
+    <div class="card" id="listCard"></div>
+  </section>
+
+  <!-- 요약 -->
+  <section id="summary" class="hidden">
+    <div class="card">
+      <div id="sumTotal"></div>
+      <label>월 생활비 한도 (모든 달에 공통 적용)</label>
+      <input type="number" id="budget" inputmode="numeric">
+      <button class="btn ghost" onclick="saveBudget()">한도 저장</button>
+    </div>
+    <div class="card" id="cats"></div>
+  </section>
+
+  <!-- 자산 -->
+  <section id="assets" class="hidden">
+    <div class="card">
+      <label>계좌 이름</label>
+      <input id="a_name" placeholder="예: 국민 생활비 통장">
+      <label>잔액</label>
+      <input type="number" id="a_amount" inputmode="numeric">
+      <label>기준일</label>
+      <input type="date" id="a_date">
+      <button class="btn" onclick="saveBal()">잔액 기록</button>
+    </div>
+    <div class="card" id="assetList"></div>
+  </section>
+
+  <div class="card">
+    <button class="btn ghost" onclick="exportBackup()">백업 파일 내보내기</button>
+    <div class="sub" style="margin-top:6px">데이터는 이 기기 브라우저에만 저장됩니다. 기기를 바꾸기 전에 백업하세요.</div>
+  </div>
+</main>
+
+<script>
+const KEY = "household-ledger-v1";
+const CATS = ["식비","교통","쇼핑","생활","구독","의료","경조사","기타"];
+let db = load();
+let tab = "input";
+let month = "";
+
+function load(){
+  try { return Object.assign({tx:[], bal:[], budget:0}, JSON.parse(localStorage.getItem(KEY)) || {}); }
+  catch(e){ return {tx:[], bal:[], budget:0}; }
+}
+function save(){ localStorage.setItem(KEY, JSON.stringify(db)); }
+
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const won = n => Number(n).toLocaleString("ko-KR") + "원";
+const pad = n => String(n).padStart(2,"0");
+function todayStr(){
+  const d = new Date();
+  return d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate());
+}
+const ym = s => s.slice(0,7);
+
+/* 승인 문자 파싱: 금액·가맹점·날짜만 추출. 원문은 저장하지 않음 */
+function parseSms(text){
+  const m = text.match(/(\d{1,3}(?:,\d{3})+|\d+)\s*원/);
+  if(!m) return null;
+  const amt = Number(m[1].replace(/,/g,""));
+  const cancel = /취소/.test(text);
+  const before = text.slice(0, m.index);
+  const mm = before.match(/(?:승인|결제|취소)\s*([^\n]*?)\s*$/);
+  const merchant = (mm && mm[1].trim()) || "(가맹점 확인)";
+  const dm = text.match(/(\d{1,2})\/(\d{1,2})/);
+  const year = new Date().getFullYear();
+  const date = dm ? year + "-" + pad(dm[1]) + "-" + pad(dm[2]) : todayStr();
+  return { date, merchant, amount: cancel ? -amt : amt };
+}
+
+function fillFromSms(){
+  const p = parseSms(document.getElementById("sms").value);
+  if(!p){ alert("금액을 찾지 못했습니다. 문자 내용을 확인해 주세요."); return; }
+  document.getElementById("f_date").value = p.date;
+  document.getElementById("f_merchant").value = p.merchant;
+  document.getElementById("f_amount").value = p.amount;
+  document.getElementById("f_memo").value = "문자 자동입력";
+  document.getElementById("sms").value = "";
+  show("input");
+}
+
+function saveForm(){
+  const amount = Number(document.getElementById("f_amount").value);
+  if(!amount){ alert("금액을 입력하세요."); return; }
+  addTx({
+    date: document.getElementById("f_date").value || todayStr(),
+    merchant: document.getElementById("f_merchant").value.trim() || "(미입력)",
+    amount,
+    category: document.getElementById("f_cat").value,
+    memo: document.getElementById("f_memo").value.trim()
+  });
+  document.getElementById("f_amount").value = "";
+  document.getElementById("f_merchant").value = "";
+  document.getElementById("f_memo").value = "";
+  alert("저장했습니다.");
+}
+
+function addTx(data){
+  db.tx.push(Object.assign({id: Date.now().toString(36) + Math.random().toString(36).slice(2,6)}, data));
+  save(); render();
+}
+
+function del(id){
+  if(!confirm("이 내역을 삭제할까요?")) return;
+  db.tx = db.tx.filter(t => t.id !== id);
+  save(); render();
+}
+
+function saveBudget(){
+  db.budget = Number(document.getElementById("budget").value) || 0;
+  save(); render();
+}
+
+function saveBal(){
+  const account = document.getElementById("a_name").value.trim();
+  const amount = Number(document.getElementById("a_amount").value);
+  const date = document.getElementById("a_date").value || todayStr();
+  if(!account){ alert("계좌 이름을 입력하세요."); return; }
+  db.bal.push({account, amount, date});
+  document.getElementById("a_amount").value = "";
+  save(); render();
+}
+
+function exportBackup(){
+  const blob = new Blob([JSON.stringify(db, null, 2)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "ledger-backup-" + todayStr() + ".json";
+  a.click();
+}
+
+function renderList(){
+  const rows = db.tx.filter(t => ym(t.date) === month).sort((a,b) => b.date.localeCompare(a.date));
+  const body = rows.length ? rows.map(t =>
+    `<div class="row">
+       <div><div>${esc(t.merchant)}</div>
+       <div class="sub">${esc(t.date)} · ${esc(t.category)}${t.memo ? " · " + esc(t.memo) : ""}</div></div>
+       <div style="text-align:right"><div class="${t.amount<0?'neg':''}">${won(t.amount)}</div>
+       <button class="btn small ghost" onclick="del('${t.id}')">삭제</button></div>
+     </div>`).join("")
+    : '<div class="sub">이 달 내역이 없습니다.</div>';
+  document.getElementById("listCard").innerHTML = body;
+}
+
+function renderSummary(){
+  const rows = db.tx.filter(t => ym(t.date) === month);
+  const total = rows.reduce((s,t) => s + t.amount, 0);
+  const byCat = {};
+  CATS.forEach(c => byCat[c] = 0);
+  rows.forEach(t => byCat[t.category] = (byCat[t.category] || 0) + t.amount);
+  const max = Math.max(1, ...Object.values(byCat));
+  const left = db.budget ? db.budget - total : null;
+  document.getElementById("budget").value = db.budget || "";
+  document.getElementById("sumTotal").innerHTML =
+    `<div class="row"><span>이번 달 지출</span><b>${won(total)}</b></div>` +
+    (db.budget ? `<div class="row"><span>남은 한도</span><b class="${left<0?'neg':''}">${won(left)}</b></div>` : "");
+  document.getElementById("cats").innerHTML = CATS.map(c =>
+    `<div class="row" style="display:block">
+       <div style="display:flex;justify-content:space-between"><span>${c}</span><span>${won(byCat[c])}</span></div>
+       <div class="bar"><div style="width:${Math.max(0, byCat[c]/max*100)}%"></div></div>
+     </div>`).join("");
+}
+
+function renderAssets(){
+  const groups = {};
+  db.bal.forEach(b => (groups[b.account] = groups[b.account] || []).push(b));
+  let html = "", total = 0;
+  for(const acc in groups){
+    const arr = groups[acc].sort((a,b) => a.date.localeCompare(b.date));
+    const last = arr[arr.length-1], prev = arr[arr.length-2];
+    const diff = prev ? last.amount - prev.amount : null;
+    total += last.amount;
+    html += `<div class="row">
+      <div><div>${esc(acc)}</div>
+      <div class="sub">${esc(last.date)} 기준${diff===null ? "" : " · 직전 대비 " + (diff>=0?"+":"") + won(diff)}</div></div>
+      <b>${won(last.amount)}</b></div>`;
+  }
+  document.getElementById("assetList").innerHTML = html
+    ? html + `<div class="row"><b>총 잔액 합계</b><b>${won(total)}</b></div>`
+    : '<div class="sub">등록된 계좌가 없습니다.</div>';
+}
+
+function render(){ renderList(); renderSummary(); renderAssets(); }
+
+function show(t){
+  tab = t;
+  document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b.dataset.t === t));
+  ["input","list","summary","assets"].forEach(id =>
+    document.getElementById(id).classList.toggle("hidden", id !== t));
+  render();
+}
+
+/* 초기화 */
+month = ym(todayStr());
+document.getElementById("monthPick").value = month;
+document.getElementById("monthPick").onchange = e => { month = e.target.value; render(); };
+document.getElementById("f_date").value = todayStr();
+document.getElementById("a_date").value = todayStr();
+document.getElementById("f_cat").innerHTML = CATS.map(c => `<option>${c}</option>`).join("");
+
+/* 단축어 전달: #sms=... 해시로 받음 (해시는 서버로 전송되지 않음) */
+const hm = location.hash.match(/sms=([^&]*)/);
+if(hm){
+  try { document.getElementById("sms").value = decodeURIComponent(hm[1]); } catch(e){}
+  history.replaceState(null, "", location.pathname);
+  fillFromSms();
+}
+show("input");
+</script>
+</body>
+</html>
