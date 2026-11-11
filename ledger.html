@@ -69,6 +69,7 @@ details summary{cursor:pointer;color:var(--accent);font-size:14px;padding:4px 0}
 <body>
 <main>
   <h1>우리집 가계부</h1>
+  <div class="card hidden" id="errBox" style="white-space:pre-wrap;color:var(--red);font-size:13px"></div>
 
   <div class="card">
     <label>조회 월</label>
@@ -326,8 +327,8 @@ function migrate(t){
 }
 
 function logMigration(){
-  const changed = db.tx.filter(t => t.v !== 2).map(t => {
-    const n = migrate(t);
+  const changed = db.tx.filter(t => t && typeof t === "object" && t.v !== 2).map(t => {
+    const n = safeNorm(t);
     const before = [t.kind, t.major ?? "", t.minor ?? "", t.category ?? ""].filter(Boolean).join(" / ");
     return {id:t.id, 날짜:t.date, 가맹점:t.merchant, 이전:before, 변환:`${n.group} · ${catLabel(n)}${n.hidden ? " (숨김)" : ""}`};
   });
@@ -366,6 +367,12 @@ function parseSms(text){
   return { date, merchant, amount: cancel ? -amt : amt, card };
 }
 
+const MERCHANT_ALIAS = {
+  "(주)우아한형": "배민",
+  "우아한형제들": "배민",
+  "배달의민족": "배민"
+};
+
 function fillFromSms(){
   const text = $("sms").value;
   $("sms").value = "";                       // 붙여넣기 칸은 바로 비움
@@ -373,10 +380,15 @@ function fillFromSms(){
   if(!p){ alert("금액을 찾지 못했습니다. 문자 내용을 확인해 주세요."); return; }
   if(editId) endEdit();
   resetForm();
+  // 가맹점 별칭: 문자에 나온 이름 → 표시할 이름
+  let merchant = p.merchant;
+  for(const k in MERCHANT_ALIAS){
+    if(merchant.includes(k)){ merchant = MERCHANT_ALIAS[k]; break; }
+  }
   $("f_date").value = p.date;
-  $("f_merchant").value = p.merchant;
+  $("f_merchant").value = merchant;
   $("f_amount").value = p.amount;
-  $("f_memo").value = (p.card ? p.card + " · " : "") + "문자 자동입력";
+  $("f_memo").value = "";             // 메모는 직접 입력하도록 빈칸
   if(!suggestFromMerchant()) setForm({group:"변동지출"});
   show("input");
 }
@@ -630,7 +642,15 @@ $("restoreFile").onchange = e => {
 };
 
 /* ───────── 집계 ───────── */
-const visibleTx = () => db.tx.map(t => ({t, n: norm(t)})).filter(x => !x.n.hidden);
+/* 형식이 이상한 옛 기록 하나 때문에 전체 화면이 멈추지 않도록 방어 */
+function safeNorm(t){
+  try { return norm(t); }
+  catch(e){ console.warn("[가계부] 변환 실패, 기타로 표시:", t, e); return {group:"변동지출", major:"기타", minor:"", hidden:false}; }
+}
+const visibleTx = () => (Array.isArray(db.tx) ? db.tx : [])
+  .filter(t => t && typeof t === "object")
+  .map(t => { if(typeof t.date !== "string") t = Object.assign({}, t, {date: String(t.date ?? "")}); return {t, n: safeNorm(t)}; })
+  .filter(x => !x.n.hidden);
 
 /* 지출 = 고정 + 변동 − 환급(해당 대분류에서 차감) */
 function aggregate(filter){
@@ -796,21 +816,39 @@ function show(t){
 }
 
 /* ───────── 초기화 ───────── */
+/* 오류가 나도 화면은 뜨게 하고, 원인을 화면에 표시 (캡처해서 확인용) */
+function showError(where, e){
+  const box = $("errBox");
+  box.classList.remove("hidden");
+  box.textContent += `[${where}] ${e && e.message ? e.message : e}\n`;
+  console.error(where, e);
+}
+window.addEventListener("error", e => showError("오류", e.error || e.message));
+
+function step(where, fn){ try { fn(); } catch(e){ showError(where, e); } }
+
 month = ym(todayStr());
 $("monthPick").value = month;
-$("monthPick").onchange = e => { if(e.target.value){ month = e.target.value; render(); } };
+$("monthPick").onchange = e => { if(e.target.value){ month = e.target.value; step("화면", render); } };
 $("a_date").value = todayStr();
-resetForm();
-logMigration();
+step("입력 폼", resetForm);
+step("데이터 변환", logMigration);
 
-/* 단축어 전달: #sms=... 해시로 받음 (해시는 서버로 전송되지 않음) */
-const hm = location.hash.match(/sms=([^&]*)/);
-if(hm){
-  try { $("sms").value = decodeURIComponent(hm[1]); } catch(e){}
+/* 단축어 전달: #sms=... 해시로 받음 (해시는 서버로 전송되지 않음)
+   가계부가 이미 열려 있으면 페이지가 새로 열리지 않고 해시만 바뀌므로 hashchange도 처리 */
+function handleSmsHash(){
+  const hm = location.hash.match(/sms=(.*)$/);
+  if(!hm) return false;
+  try { $("sms").value = decodeURIComponent(hm[1]); }
+  catch(e){ $("sms").value = hm[1]; }          // 인코딩이 깨져도 원문 그대로 받아서 시도
   history.replaceState(null, "", location.pathname);
-  fillFromSms();
+  step("문자로 채우기", fillFromSms);
+  window.scrollTo(0, 0);
+  return true;
 }
-show("input");
+window.addEventListener("hashchange", () => step("문자로 채우기", handleSmsHash));
+step("화면", () => show("input"));
+step("문자로 채우기", handleSmsHash);
 </script>
 </body>
 </html>
