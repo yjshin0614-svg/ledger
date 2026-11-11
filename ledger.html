@@ -5,13 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>우리집 가계부</title>
+<link rel="preload" href="https://cdn.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-4Regular.woff2" as="font" type="font/woff2" crossorigin>
 <style>
-:root{--bg:#f6f7f9;--card:#fff;--text:#1d1f23;--sub:#6b7280;--accent:#2563eb;--red:#dc2626;--line:#e5e7eb}
-@media (prefers-color-scheme: dark){:root{--bg:#111318;--card:#1b1e26;--text:#eceef3;--sub:#9aa1ad;--accent:#60a5fa;--red:#f87171;--line:#2a2f3a}}
-*{box-sizing:border-box}
-body{margin:0;font-family:-apple-system,"Apple SD Gothic Neo",sans-serif;background:var(--bg);color:var(--text);padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
+/* Paperlogy 4 Regular (SIL OFL 1.1) — 한 가지 굵기만 사용 */
+@font-face{font-family:"Paperlogy";src:url("https://cdn.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-4Regular.woff2") format("woff2");font-weight:400;font-style:normal;font-display:swap}
+:root{--bg:#f6f7f9;--card:#fff;--text:#1d1f23;--sub:#6b7280;--accent:#2563eb;--red:#dc2626;--green:#059669;--line:#e5e7eb;--p1:#6D28D9;--p2:#C084FC;--track:#f1edfb}
+@media (prefers-color-scheme: dark){:root{--bg:#111318;--card:#1b1e26;--text:#eceef3;--sub:#9aa1ad;--accent:#60a5fa;--red:#f87171;--green:#34d399;--line:#2a2f3a;--track:#262236}}
+*{box-sizing:border-box;font-weight:400 !important;font-synthesis:none}
+html,body,input,select,textarea,button{font-family:"Paperlogy","Apple SD Gothic Neo","Malgun Gothic",sans-serif}
+input,select,textarea,button{font-size:inherit;line-height:inherit}
+body{margin:0;background:var(--bg);color:var(--text);padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
 main{max-width:520px;margin:0 auto;padding:16px}
-h1{font-size:20px;margin:8px 0 12px}
+h1{font-size:22px;margin:8px 0 12px}
+h2{font-size:16px;margin:0 0 6px}
 nav{display:flex;gap:6px;margin-bottom:10px}
 nav button{flex:1;padding:10px;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:10px;font-size:14px}
 nav button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
@@ -24,11 +30,40 @@ textarea{min-height:80px;font-size:14px}
 .btn.small{width:auto;padding:4px 10px;margin:0;font-size:12px}
 .row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px;gap:8px}
 .row:last-child{border-bottom:0}
+.big{font-size:16px}
 .sub{color:var(--sub);font-size:12px}
 .neg{color:var(--red)}
+.pos{color:var(--green)}
+.acc{color:var(--accent)}
+.hint{color:var(--sub);font-size:12px;margin-top:4px;min-height:14px}
+.hint.rec{color:var(--accent)}
+.editing{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 25%,transparent)}
 .bar{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin-top:4px}
 .bar>div{height:100%;background:var(--accent)}
+.bar.exp>div{background:var(--red)}
+.bar.inc>div{background:var(--green)}
+.bar.over>div{background:var(--red)}
+.acts{display:flex;gap:4px;justify-content:flex-end;margin-top:4px}
+.tag{display:inline-block;font-size:11px;padding:1px 6px;border-radius:6px;border:1px solid var(--line);color:var(--sub);margin-right:4px}
 .hidden{display:none}
+details summary{cursor:pointer;color:var(--accent);font-size:14px;padding:4px 0}
+.bud{display:grid;grid-template-columns:1fr 4.6em 7.5em;gap:6px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);font-size:14px}
+.bud select,.bud input{padding:6px 8px;font-size:14px}
+
+/* 항목별 지출 차트 */
+.chead{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px}
+.badge{flex:none;width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,var(--p1),var(--p2));color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px}
+.crow{display:grid;grid-template-columns:5.4em 2.8em minmax(40px,1fr) auto;align-items:center;gap:6px;padding:6px 0;font-size:13px}
+.crow .lab{white-space:nowrap}
+.crow .pct{text-align:right;color:var(--sub)}
+.crow .amt{text-align:right;white-space:nowrap}
+.ctrack{height:14px;background:var(--track);border-radius:7px;overflow:hidden}
+.ctrack>div{height:100%;border-radius:7px;background:linear-gradient(90deg,var(--p1),var(--p2))}
+.crow.zero{opacity:.4}
+@media (max-width:360px){
+  .crow{grid-template-columns:2.8em minmax(40px,1fr) auto;row-gap:2px}
+  .crow .lab{grid-column:1/-1}
+}
 </style>
 </head>
 <body>
@@ -55,18 +90,27 @@ textarea{min-height:80px;font-size:14px}
       <button class="btn ghost" onclick="fillFromSms()">문자로 채우기</button>
       <div class="sub" style="margin-top:6px">자동으로 채워진 내용은 저장 전에 꼭 확인하세요. 문자 원문은 저장하지 않습니다.</div>
     </div>
-    <div class="card">
+    <div class="card" id="formCard">
+      <h2 id="formTitle">새 내역</h2>
       <label>날짜</label>
       <input type="date" id="f_date">
-      <label>금액 (취소·환불은 음수)</label>
+      <label>구분</label>
+      <select id="f_group"></select>
+      <label>대분류</label>
+      <select id="f_major"></select>
+      <label>소분류</label>
+      <select id="f_minor"></select>
+      <div class="hint" id="minorHint"></div>
+      <label>사용내역 (가맹점)</label>
+      <input id="f_merchant" list="merchantList" autocomplete="off">
+      <datalist id="merchantList"></datalist>
+      <div class="hint" id="recHint"></div>
+      <label id="amountLabel">금액</label>
       <input type="number" id="f_amount" inputmode="numeric">
-      <label>가맹점</label>
-      <input id="f_merchant">
-      <label>카테고리</label>
-      <select id="f_cat"></select>
-      <label>메모</label>
+      <label>메모 (배달 여부, 대상 사람 등)</label>
       <input id="f_memo">
-      <button class="btn" onclick="saveForm()">저장</button>
+      <button class="btn" id="saveBtn" onclick="saveForm()">저장</button>
+      <button class="btn ghost" id="cancelBtn" onclick="cancelForm()">취소</button>
     </div>
   </section>
 
@@ -77,13 +121,35 @@ textarea{min-height:80px;font-size:14px}
 
   <!-- 요약 -->
   <section id="summary" class="hidden">
+    <div class="card" id="sumTotal"></div>
+
     <div class="card">
-      <div id="sumTotal"></div>
+      <div class="chead">
+        <div><h2>항목별 지출</h2><div class="sub">고정+변동, 환급 차감 · 총지출 대비 비중</div></div>
+        <div class="badge" id="monthBadge"></div>
+      </div>
+      <div id="chart"></div>
+    </div>
+
+    <div class="card">
+      <h2>예산 현황</h2>
+      <div id="budgetStatus"></div>
       <label>월 생활비 한도 (모든 달에 공통 적용)</label>
       <input type="number" id="budget" inputmode="numeric">
       <button class="btn ghost" onclick="saveBudget()">한도 저장</button>
+      <details style="margin-top:10px">
+        <summary>대분류별 예산 설정</summary>
+        <div class="sub" style="margin:4px 0 6px">몰려서 나가는 항목은 '연'을 골라 연간 예산으로 관리하세요. 비우면 예산 없음.</div>
+        <div id="budgetEdit"></div>
+        <button class="btn ghost" onclick="saveBudgets()">예산 저장</button>
+      </details>
     </div>
-    <div class="card" id="cats"></div>
+
+    <div class="card">
+      <h2>최근 6개월 추이</h2>
+      <div class="sub">빨간 막대 지출 · 초록 막대 수입</div>
+      <div id="trend"></div>
+    </div>
   </section>
 
   <!-- 자산 -->
@@ -102,170 +168,603 @@ textarea{min-height:80px;font-size:14px}
 
   <div class="card">
     <button class="btn ghost" onclick="exportBackup()">백업 파일 내보내기</button>
-    <div class="sub" style="margin-top:6px">데이터는 이 기기 브라우저에만 저장됩니다. 기기를 바꾸기 전에 백업하세요.</div>
+    <button class="btn ghost" onclick="document.getElementById('restoreFile').click()">백업 파일로 복원하기</button>
+    <input type="file" id="restoreFile" accept="application/json,.json" class="hidden">
+    <div class="sub" style="margin-top:6px">데이터는 이 기기 브라우저에만 저장됩니다. 기기를 바꾸기 전에 백업하고, 새 기기에서 복원하세요.</div>
   </div>
 </main>
 
 <script>
 const KEY = "household-ledger-v1";
-const CATS = ["식비","교통","쇼핑","생활","구독","의료","경조사","기타"];
+
+/* ───────── 구분 · 카테고리 ───────── */
+const GROUPS = ["수입","고정지출","변동지출","저축·투자","연금·노후","환급"];
+const CAT = {
+  "수입":     ["재민월급","유진월급","재민상여","유진상여","부수입"],
+  "저축·투자": ["주식계좌","예적금","대출원금상환","펀드/ETF","달러/금","가상화폐"],
+  "연금·노후": ["국민연금","개인연금","퇴직연금"],
+  "식비":     ["식자재","외식","카페류"],
+  "주거":     ["관리비","대출이자","수리/청소"],
+  "교통":     ["주유","주차/통행료","대중교통","정비","보험/세금"],
+  "통신비":   ["휴대폰","인터넷/TV","구독"],
+  "생활용품": ["소모품","가전/가구","침구/인테리어"],
+  "꾸밈비":   ["의류/잡화","미용/헤어","세탁/수선"],
+  "건강":     ["병원/약국","건강보조","검진"],
+  "자기계발": ["운동","교육/도서"],
+  "여행":     ["국내","해외"],
+  "문화·여가": ["영화·공연","전시·체험","취미·여가"],
+  "경조사":   ["가족/친척","지인/동료"],
+  "보험":     ["재민보험","유진보험"],
+  "용돈":     ["재민용돈","유진용돈"],
+  "기타":     ["회비","서비스"]
+};
+const SELF_MAJORS = ["수입","저축·투자","연금·노후"];           // 구분 = 대분류
+const EXP_MAJORS = Object.keys(CAT).filter(m => !SELF_MAJORS.includes(m));
+const HIDDEN_MAJORS = ["자녀","반려동물"];                       // 데이터는 보존, 화면에서 숨김
+const HINTS = {
+  "식비>식자재":"장보기, 간장·된장 등 식재료, 채소, 고기",
+  "식비>외식":"식당, 배달음식 전부 (배달 여부는 메모에)",
+  "식비>카페류":"커피, 음료, 빵, 간식 카페 구매",
+  "교통>주유":"주유소",
+  "교통>주차/통행료":"주차비, 고속도로·하이패스 통행료",
+  "교통>대중교통":"버스, 지하철, 택시",
+  "교통>정비":"자동차 소모품, 자동차 수리",
+  "교통>보험/세금":"자동차보험, 자동차세",
+  "통신비>휴대폰":"요금, 기기 수리, 케이스·충전기 등 액세서리",
+  "통신비>구독":"넷플릭스, 유튜브 프리미엄 등 정기 구독",
+  "생활용품>소모품":"생활소모품, 우편/택배",
+  "생활용품>가전/가구":"가전, 가구, 가전·가구 수리 및 액세서리",
+  "문화·여가>취미·여가":"보드게임, 취미 레슨, 취미용품, 음악·그림 재료비"
+};
+/* 예산 항목: 대분류 + 몰리는 소분류. 기본 주기 */
+const BUDGET_KEYS = [...EXP_MAJORS.flatMap(m => m === "교통" ? ["교통","교통 > 정비","교통 > 보험/세금"] : [m])];
+const YEARLY_DEFAULT = ["교통 > 정비","교통 > 보험/세금","여행","보험"];
+
+function defaultGroup(major, minor){
+  if(SELF_MAJORS.includes(major)) return major;
+  if(major === "주거") return minor === "수리/청소" ? "변동지출" : "고정지출";
+  if(major === "교통") return minor === "보험/세금" ? "고정지출" : "변동지출";
+  if(["통신비","보험","기타"].includes(major)) return "고정지출";
+  return "변동지출";
+}
+function majorsFor(group){
+  if(SELF_MAJORS.includes(group)) return [group];
+  if(!group) return Object.keys(CAT);
+  return EXP_MAJORS;
+}
+
+/* ───────── 저장 ───────── */
 let db = load();
-let tab = "input";
-let month = "";
+let tab = "input", month = "", editId = null, groupManual = false;
 
 function load(){
-  try { return Object.assign({tx:[], bal:[], budget:0}, JSON.parse(localStorage.getItem(KEY)) || {}); }
-  catch(e){ return {tx:[], bal:[], budget:0}; }
+  try { return Object.assign({tx:[], bal:[], budget:0, budgets:{}}, JSON.parse(localStorage.getItem(KEY)) || {}); }
+  catch(e){ return {tx:[], bal:[], budget:0, budgets:{}}; }
 }
 function save(){ localStorage.setItem(KEY, JSON.stringify(db)); }
 
+const $ = id => document.getElementById(id);
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const won = n => Number(n).toLocaleString("ko-KR") + "원";
 const pad = n => String(n).padStart(2,"0");
-function todayStr(){
-  const d = new Date();
-  return d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate());
-}
-const ym = s => s.slice(0,7);
+function todayStr(){ const d = new Date(); return d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate()); }
+const ym = s => String(s).slice(0,7);
+const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+const catLabel = n => n.minor ? `${n.major} > ${n.minor}` : (n.major || "미분류");
 
-/* 승인 문자 파싱: 금액·가맹점·날짜만 추출. 원문은 저장하지 않음 */
+/* ───────── 옛 데이터 이관 (원본은 건드리지 않고 화면·집계용 결과만 계산) ───────── */
+const LEGACY_FLAT = {           // 예전 단일 카테고리 → [대분류, 소분류]
+  "쇼핑":["생활용품",""], "생활":["생활용품","소모품"], "구독":["통신비","구독"], "의료":["건강","병원/약국"],
+  "자동차":["교통",""], "문화생활":["문화·여가",""]
+};
+const who = s => /남편|재민/.test(s) ? "재민" : /아내|유진/.test(s) ? "유진" : "";
+
+function norm(t){
+  if(t.v === 2) return {group:t.group, major:t.major, minor:t.minor || "", hidden: HIDDEN_MAJORS.includes(t.major)};
+  return migrate(t);
+}
+
+function migrate(t){
+  let major = String(t.major ?? t.cat1 ?? "").trim();
+  let minor = String(t.minor ?? t.sub ?? t.cat2 ?? "").trim();
+  const cat = String(t.category ?? "").trim();
+  if(!major){
+    if(cat.includes(">")) [major, minor] = cat.split(">").map(s => s.trim());
+    else major = cat;
+  }
+
+  // 수입
+  const incWords = /월급|상여|연차수당|부수입|급여|이자·배당|기타수입/;
+  if(t.kind === "income" || major === "수입" || (!minor && incWords.test(major))){
+    const s = minor || major;
+    let m;
+    if(/월급|급여/.test(s)) m = who(s) ? who(s) + "월급" : "";
+    else if(/상여|연차수당/.test(s)) m = who(s) ? who(s) + "상여" : "";
+    else m = "부수입";
+    return {group:"수입", major:"수입", minor:m, hidden:false};
+  }
+
+  // 대분류 이름 변경 / 예전 단일 카테고리
+  if(LEGACY_FLAT[major]){ const [M, m] = LEGACY_FLAT[major]; major = M; minor = minor || m; }
+
+  // 보험·용돈 사람 이름
+  if(major === "보험"){
+    if(/자녀/.test(minor)) major = "자녀";
+    else if(who(minor)) minor = who(minor) + "보험";
+  }
+  if(major === "용돈" && who(minor)) minor = who(minor) + "용돈";
+
+  if(HIDDEN_MAJORS.includes(major)) return {group: defaultGroup(major, minor), major, minor, hidden:true};
+
+  // 소분류 규칙
+  if(minor === "소모품/수리"){
+    if(major === "교통") minor = "정비";
+    else if(major === "생활용품") minor = "소모품";
+    else { major = "기타"; minor = "서비스"; }
+  }
+  if(minor === "예방/검진"){ major = "건강"; minor = "검진"; }
+  if(major === "교통"){
+    if(/세금|보험/.test(minor)) minor = "보험/세금";
+    else if(/주차|통행/.test(minor)) minor = "주차/통행료";
+    else if(/버스|지하철|택시/.test(minor)) minor = "대중교통";
+    else if(/수리|정비|소모품/.test(minor)) minor = "정비";
+  }
+  if(major === "식비"){             // 배달과 외식은 구분하지 않음
+    if(/배달|외식|식당/.test(minor)) minor = "외식";
+    else if(/커피|카페|음료|빵|간식/.test(minor)) minor = "카페류";
+    else if(/장보기|식재료|마트|채소|고기/.test(minor)) minor = "식자재";
+  }
+  if(major === "기타" && /세금|세$/.test(minor)){ major = "교통"; minor = "보험/세금"; }   // 자동차세 등은 교통으로 통합
+
+  // 목록에 없는 대분류·소분류 → 기타 > 서비스
+  if(major && !CAT[major]){ major = "기타"; minor = "서비스"; }
+  else if(major && minor && !CAT[major].includes(minor)){ major = "기타"; minor = "서비스"; }
+  if(!major) major = "기타";
+
+  const group = GROUPS.includes(t.group) && !SELF_MAJORS.includes(t.group) ? t.group : defaultGroup(major, minor);
+  return {group, major, minor, hidden:false};
+}
+
+function logMigration(){
+  const changed = db.tx.filter(t => t.v !== 2).map(t => {
+    const n = migrate(t);
+    const before = [t.kind, t.major ?? "", t.minor ?? "", t.category ?? ""].filter(Boolean).join(" / ");
+    return {id:t.id, 날짜:t.date, 가맹점:t.merchant, 이전:before, 변환:`${n.group} · ${catLabel(n)}${n.hidden ? " (숨김)" : ""}`};
+  });
+  if(changed.length){
+    console.log(`[가계부] 옛 데이터 ${changed.length}건을 새 구분·카테고리로 변환해 표시합니다. (저장된 원본은 그대로)`);
+    console.table(changed);
+  }
+}
+
+/* ───────── 승인 문자 파싱: 금액·가맹점·날짜·카드사만 추출, 원문은 저장하지 않음 ───────── */
 function parseSms(text){
   const lines = text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-
-  // 금액: 잔액·누적 줄을 뺀 나머지에서 첫 번째 "원" 금액
   const body = lines.filter(l => !/잔액|누적/.test(l)).join("\n");
   const m = body.match(/(\d{1,3}(?:,\d{3})+|\d+)\s*원/);
   if(!m) return null;
   const amt = Number(m[1].replace(/,/g, ""));
   const cancel = /취소/.test(text);
 
-  // 날짜: 2026/11/11 형식 우선, 없으면 11/11 형식
   let date = todayStr();
   const full = text.match(/(\d{4})\/(\d{1,2})\/(\d{1,2})/);
   const short = text.match(/(?:^|[^\d\/])(\d{1,2})\/(\d{1,2})/);
-  if(full){
-    date = full[1] + "-" + pad(full[2]) + "-" + pad(full[3]);
-  } else if(short){
-    date = new Date().getFullYear() + "-" + pad(short[1]) + "-" + pad(short[2]);
-  }
+  if(full) date = full[1] + "-" + pad(full[2]) + "-" + pad(full[3]);
+  else if(short) date = new Date().getFullYear() + "-" + pad(short[1]) + "-" + pad(short[2]);
 
-  // 가맹점(상대방): 잔액 줄 다음 줄 우선, 없으면 날짜 줄 다음 줄
   let merchant = "";
   const iBal = lines.findIndex(l => /^잔액/.test(l));
   const iDate = lines.findIndex(l => /\d{1,2}\/\d{1,2}/.test(l));
   if(iBal >= 0 && lines[iBal + 1]) merchant = lines[iBal + 1];
   else if(iDate >= 0 && lines[iDate + 1]) merchant = lines[iDate + 1];
   merchant = merchant.replace(/^KCP-/, "").replace(/총누적.*$/, "").trim();
-  if(!merchant || /\*|^010|기업|\d{1,3}(,\d{3})*원/.test(merchant)){
-    merchant = "(가맹점 확인)";
-  }
+  if(!merchant || /\*|^010|기업|\d{1,3}(,\d{3})*원/.test(merchant)) merchant = "(가맹점 확인)";
 
-  return { date, merchant, amount: cancel ? -amt : amt };
+  const cm = text.match(/(KB국민|국민|신한|삼성|현대|롯데|하나|우리|NH농협|농협|BC|비씨|씨티|IBK기업|카카오뱅크|토스)\s*(카드|체크)?/);
+  const card = cm ? cm[1] + (cm[2] || "카드") : "";
+
+  return { date, merchant, amount: cancel ? -amt : amt, card };
 }
 
 function fillFromSms(){
-  const p = parseSms(document.getElementById("sms").value);
+  const text = $("sms").value;
+  $("sms").value = "";                       // 붙여넣기 칸은 바로 비움
+  const p = parseSms(text);
   if(!p){ alert("금액을 찾지 못했습니다. 문자 내용을 확인해 주세요."); return; }
-
-  // 가맹점 별칭: 문자에 나온 이름 → 표시할 이름
-  const ALIAS = {
-    "(주)우아한형": "배민",
-    "우아한형제들": "배민",
-    "배달의민족": "배민"
-  };
-  let merchant = p.merchant;
-  for(const k in ALIAS){
-    if(merchant.includes(k)){ merchant = ALIAS[k]; break; }
-  }
-
-  document.getElementById("f_date").value = p.date;
-  document.getElementById("f_merchant").value = merchant;
-  document.getElementById("f_amount").value = p.amount;
-  document.getElementById("f_memo").value = "";   // 메모는 직접 입력하도록 빈칸
-  document.getElementById("sms").value = "";
+  if(editId) endEdit();
+  resetForm();
+  $("f_date").value = p.date;
+  $("f_merchant").value = p.merchant;
+  $("f_amount").value = p.amount;
+  $("f_memo").value = (p.card ? p.card + " · " : "") + "문자 자동입력";
+  if(!suggestFromMerchant()) setForm({group:"변동지출"});
   show("input");
 }
 
-function saveForm(){
-  const amount = Number(document.getElementById("f_amount").value);
-  if(!amount){ alert("금액을 입력하세요."); return; }
-  addTx({
-    date: document.getElementById("f_date").value || todayStr(),
-    merchant: document.getElementById("f_merchant").value.trim() || "(미입력)",
-    amount,
-    category: document.getElementById("f_cat").value,
-    memo: document.getElementById("f_memo").value.trim()
-  });
-  document.getElementById("f_amount").value = "";
-  document.getElementById("f_merchant").value = "";
-  document.getElementById("f_memo").value = "";
-  alert("저장했습니다.");
+/* ───────── 입력 폼 ───────── */
+const opt = (v, text, sel) => `<option value="${esc(v)}"${v === sel ? " selected" : ""}>${esc(text ?? v)}</option>`;
+
+function fillGroups(sel){
+  $("f_group").innerHTML = opt("", "구분 선택", sel) + GROUPS.map(g => opt(g, g, sel)).join("");
+}
+function fillMajors(group, sel){
+  const list = majorsFor(group);
+  if(sel && !list.includes(sel)) sel = "";
+  $("f_major").innerHTML = opt("", "대분류 선택", sel) + list.map(m => opt(m, m, sel)).join("");
+  return sel;
+}
+function fillMinors(major, sel){
+  const list = CAT[major] || [];
+  const isRefund = $("f_group").value === "환급";
+  const first = !major ? "대분류를 먼저 고르세요" : isRefund ? "원래 지출의 소분류 (선택)" : "소분류 선택";
+  if(sel && !list.includes(sel)) sel = "";
+  $("f_minor").innerHTML = opt("", first, sel) + list.map(m => opt(m, m, sel)).join("");
+  showMinorHint();
+}
+function showMinorHint(){
+  $("minorHint").textContent = HINTS[$("f_major").value + ">" + $("f_minor").value] || "";
+}
+function updateAmountLabel(){
+  const g = $("f_group").value;
+  $("amountLabel").textContent =
+    g === "환급" ? "금액 (양수로 입력)" :
+    (g === "고정지출" || g === "변동지출") ? "금액 (취소는 음수)" : "금액";
+}
+function setForm({group = "", major = "", minor = ""}){
+  fillGroups(group);
+  major = fillMajors(group, major);
+  fillMinors(major, minor);
+  updateAmountLabel();
 }
 
-function addTx(data){
-  db.tx.push(Object.assign({id: Date.now().toString(36) + Math.random().toString(36).slice(2,6)}, data));
+$("f_group").addEventListener("change", () => {
+  const g = $("f_group").value;
+  if($("f_major").value) groupManual = true;
+  const major = fillMajors(g, $("f_major").value);
+  fillMinors(major, $("f_minor").value);
+  updateAmountLabel();
+});
+$("f_major").addEventListener("change", () => {
+  const major = $("f_major").value;
+  groupManual = false;
+  if(major && $("f_group").value !== "환급"){
+    const g = defaultGroup(major, "");
+    fillGroups(g);
+    fillMajors(g, major);
+  }
+  fillMinors(major, "");
+  updateAmountLabel();
+});
+$("f_minor").addEventListener("change", () => {
+  const major = $("f_major").value, minor = $("f_minor").value;
+  if(!groupManual && $("f_group").value !== "환급" && (major === "주거" || major === "교통")){
+    fillGroups(defaultGroup(major, minor));
+  }
+  showMinorHint();
+  updateAmountLabel();
+});
+
+/* 같은 가맹점의 최근 기록으로 구분·대분류·소분류 추천 (대분류가 비어 있을 때만 채움) */
+function suggestFromMerchant(){
+  const name = $("f_merchant").value.trim().toLowerCase();
+  $("recHint").textContent = "";
+  if(!name || name === "(가맹점 확인)") return false;
+  const hit = visibleTx()
+    .filter(x => x.t.id !== editId && x.n.group !== "환급" && String(x.t.merchant).trim().toLowerCase() === name)
+    .sort((a,b) => b.t.date.localeCompare(a.t.date))[0];
+  if(!hit) return false;
+  if($("f_major").value){
+    $("recHint").textContent = `이전 기록: ${hit.n.group} · ${catLabel(hit.n)}`;
+    return false;
+  }
+  setForm(hit.n);
+  $("recHint").className = "hint rec";
+  $("recHint").textContent = `이전 기록 기준으로 '${catLabel(hit.n)}' 추천`;
+  return true;
+}
+$("f_merchant").addEventListener("change", suggestFromMerchant);
+
+function refreshMerchantList(){
+  const names = [...new Set(visibleTx().map(x => x.t.merchant))].filter(n => n && !/^\(/.test(n));
+  $("merchantList").innerHTML = names.map(n => `<option value="${esc(n)}">`).join("");
+}
+
+function resetForm(){
+  ["f_date","f_amount","f_merchant","f_memo"].forEach(id => $(id).value = "");
+  $("recHint").textContent = ""; $("recHint").className = "hint";
+  groupManual = false;
+  setForm({});
+}
+
+function saveForm(){
+  const amount = Number($("f_amount").value);
+  const group = $("f_group").value, major = $("f_major").value, minor = $("f_minor").value;
+  if(!amount){ alert("금액을 입력하세요."); $("f_amount").focus(); return; }
+  if(!group){ alert("구분을 고르세요."); return; }
+  if(!major){ alert("대분류를 고르세요."); return; }
+  if(!minor && group !== "환급"){ alert("소분류를 고르세요."); return; }
+  if(group === "환급" && amount < 0){ alert("환급은 양수로 입력하세요."); return; }
+
+  const rec = {
+    v:2, group, major, minor,
+    kind: group === "수입" ? "income" : "expense",
+    category: minor ? `${major} > ${minor}` : major,
+    date: $("f_date").value || todayStr(),
+    merchant: $("f_merchant").value.trim() || "(미입력)",
+    amount,
+    memo: $("f_memo").value.trim()
+  };
+  if(editId){
+    const t = db.tx.find(x => x.id === editId);
+    if(t){
+      if(t.v !== 2 && !t.orig){        // 옛 원본 값은 orig에 보존
+        t.orig = {};
+        ["kind","category","major","minor","group"].forEach(k => { if(t[k] !== undefined) t.orig[k] = t[k]; });
+      }
+      Object.assign(t, rec);
+    }
+    endEdit();
+    save(); render();
+    alert("수정했습니다.");
+    show("list");
+    return;
+  }
+  db.tx.push(Object.assign({id: newId()}, rec));
   save(); render();
+  resetForm();
+  alert("저장했습니다.");
+  $("f_amount").focus();
+}
+
+function cancelForm(){
+  const wasEdit = !!editId;
+  if(editId) endEdit(); else resetForm();
+  if(wasEdit) show("list");
+}
+
+function startEdit(id){
+  const t = db.tx.find(x => x.id === id);
+  if(!t) return;
+  editId = id;
+  resetForm();
+  setForm(norm(t));
+  groupManual = true;
+  $("f_date").value = t.date;
+  $("f_amount").value = t.amount;
+  $("f_merchant").value = t.merchant;
+  $("f_memo").value = t.memo || "";
+  $("formTitle").textContent = "내역 수정";
+  $("saveBtn").textContent = "수정 저장";
+  $("cancelBtn").textContent = "수정 취소";
+  $("formCard").classList.add("editing");
+  show("input");
+  $("formCard").scrollIntoView({behavior:"smooth", block:"start"});
+}
+function endEdit(){
+  editId = null;
+  $("formTitle").textContent = "새 내역";
+  $("saveBtn").textContent = "저장";
+  $("cancelBtn").textContent = "취소";
+  $("formCard").classList.remove("editing");
+  resetForm();
 }
 
 function del(id){
   if(!confirm("이 내역을 삭제할까요?")) return;
   db.tx = db.tx.filter(t => t.id !== id);
+  if(editId === id) endEdit();
   save(); render();
 }
 
-function saveBudget(){
-  db.budget = Number(document.getElementById("budget").value) || 0;
+/* ───────── 예산 · 자산 ───────── */
+function saveBudget(){ db.budget = Number($("budget").value) || 0; save(); render(); }
+
+function saveBudgets(){
+  const next = {};
+  BUDGET_KEYS.forEach((k, i) => {
+    const amount = Number($("bud_a_" + i).value) || 0;
+    if(amount > 0) next[k] = {period: $("bud_p_" + i).value, amount};
+  });
+  db.budgets = next;
   save(); render();
+  alert("예산을 저장했습니다.");
 }
 
 function saveBal(){
-  const account = document.getElementById("a_name").value.trim();
-  const amount = Number(document.getElementById("a_amount").value);
-  const date = document.getElementById("a_date").value || todayStr();
+  const account = $("a_name").value.trim();
+  const amount = Number($("a_amount").value);
+  const date = $("a_date").value || todayStr();
   if(!account){ alert("계좌 이름을 입력하세요."); return; }
   db.bal.push({account, amount, date});
-  document.getElementById("a_amount").value = "";
+  $("a_amount").value = "";
   save(); render();
 }
 
+/* ───────── 백업 ───────── */
 function exportBackup(){
   const blob = new Blob([JSON.stringify(db, null, 2)], {type:"application/json"});
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = "ledger-backup-" + todayStr() + ".json";
   a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+function cleanBackup(raw){
+  if(!raw || typeof raw !== "object" || !Array.isArray(raw.tx)) return null;
+  const isDate = s => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s);
+  const tx = raw.tx
+    .filter(t => t && typeof t === "object" && isDate(t.date) && isFinite(Number(t.amount)))
+    .map(t => Object.assign({}, t, {
+      id: typeof t.id === "string" && t.id ? t.id : newId(),
+      merchant: String(t.merchant ?? "(미입력)"),
+      amount: Number(t.amount),
+      memo: String(t.memo ?? "")
+    }));
+  const bal = (Array.isArray(raw.bal) ? raw.bal : [])
+    .filter(b => b && b.account && isDate(b.date) && isFinite(Number(b.amount)))
+    .map(b => ({account: String(b.account), amount: Number(b.amount), date: b.date}));
+  const budgets = raw.budgets && typeof raw.budgets === "object" && !Array.isArray(raw.budgets) ? raw.budgets : {};
+  return {tx, bal, budget: Number(raw.budget) || 0, budgets};
+}
+
+$("restoreFile").onchange = e => {
+  const file = e.target.files[0];
+  e.target.value = "";
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    let next;
+    try { next = cleanBackup(JSON.parse(reader.result)); } catch(err){ next = null; }
+    if(!next){ alert("가계부 백업 파일이 아닙니다. 파일을 확인해 주세요."); return; }
+    const msg = `백업 파일: 내역 ${next.tx.length}건, 잔액 기록 ${next.bal.length}건\n` +
+                `현재 데이터: 내역 ${db.tx.length}건, 잔액 기록 ${db.bal.length}건\n\n` +
+                `현재 데이터를 백업 파일 내용으로 바꿀까요? (되돌릴 수 없습니다)`;
+    if(!confirm(msg)) return;
+    db = next;
+    if(editId) endEdit();
+    save(); logMigration(); render();
+    alert("복원했습니다.");
+  };
+  reader.readAsText(file);
+};
+
+/* ───────── 집계 ───────── */
+const visibleTx = () => db.tx.map(t => ({t, n: norm(t)})).filter(x => !x.n.hidden);
+
+/* 지출 = 고정 + 변동 − 환급(해당 대분류에서 차감) */
+function aggregate(filter){
+  const r = {inc:0, fixed:0, vari:0, refund:0, save:0, pension:0, byMajor:{}, byMinor:{}};
+  EXP_MAJORS.forEach(m => r.byMajor[m] = 0);
+  visibleTx().forEach(({t, n}) => {
+    if(!filter(t)) return;
+    const a = Number(t.amount) || 0;
+    let spend = 0;
+    switch(n.group){
+      case "수입": r.inc += a; return;
+      case "저축·투자": r.save += a; return;
+      case "연금·노후": r.pension += a; return;
+      case "고정지출": r.fixed += a; spend = a; break;
+      case "변동지출": r.vari += a; spend = a; break;
+      case "환급": r.refund += a; spend = -a; break;
+      default: return;
+    }
+    r.byMajor[n.major] = (r.byMajor[n.major] || 0) + spend;
+    if(n.minor){ const k = `${n.major} > ${n.minor}`; r.byMinor[k] = (r.byMinor[k] || 0) + spend; }
+  });
+  r.spend = r.fixed + r.vari - r.refund;
+  r.rate = r.inc > 0 ? (r.inc - r.spend) / r.inc : null;
+  r.surplus = r.inc - r.spend - r.save - r.pension;
+  return r;
+}
+const monthAgg = m => aggregate(t => ym(t.date) === m);
+
+function shiftMonth(m, n){
+  const [y, mo] = m.split("-").map(Number);
+  const d = new Date(y, mo - 1 + n, 1);
+  return d.getFullYear() + "-" + pad(d.getMonth()+1);
+}
+
+/* ───────── 화면 ───────── */
+function groupClass(g){
+  return g === "수입" || g === "환급" ? "pos" : (g === "저축·투자" || g === "연금·노후") ? "acc" : "";
 }
 
 function renderList(){
-  const rows = db.tx.filter(t => ym(t.date) === month).sort((a,b) => b.date.localeCompare(a.date));
-  const body = rows.length ? rows.map(t =>
-    `<div class="row">
+  const rows = visibleTx().filter(x => ym(x.t.date) === month).sort((a,b) => b.t.date.localeCompare(a.t.date));
+  $("listCard").innerHTML = rows.length ? rows.map(({t, n}) => {
+    const plus = n.group === "수입" || n.group === "환급";
+    const cls = t.amount < 0 ? "neg" : groupClass(n.group);
+    return `<div class="row">
        <div><div>${esc(t.merchant)}</div>
-       <div class="sub">${esc(t.date)} · ${esc(t.category)}${t.memo ? " · " + esc(t.memo) : ""}</div></div>
-       <div style="text-align:right"><div class="${t.amount<0?'neg':''}">${won(t.amount)}</div>
-       <button class="btn small ghost" onclick="del('${t.id}')">삭제</button></div>
-     </div>`).join("")
-    : '<div class="sub">이 달 내역이 없습니다.</div>';
-  document.getElementById("listCard").innerHTML = body;
+       <div class="sub"><span class="tag">${esc(n.group)}</span>${esc(t.date)} · ${esc(catLabel(n))}${t.memo ? " · " + esc(t.memo) : ""}</div></div>
+       <div style="text-align:right;white-space:nowrap"><div class="${cls}">${plus ? "+" : ""}${won(t.amount)}</div>
+       <div class="acts">
+         <button class="btn small ghost" onclick="startEdit('${esc(t.id)}')">수정</button>
+         <button class="btn small ghost" onclick="del('${esc(t.id)}')">삭제</button>
+       </div></div>
+     </div>`;
+  }).join("") : '<div class="sub">이 달 내역이 없습니다.</div>';
 }
 
 function renderSummary(){
-  const rows = db.tx.filter(t => ym(t.date) === month);
-  const total = rows.reduce((s,t) => s + t.amount, 0);
-  const byCat = {};
-  CATS.forEach(c => byCat[c] = 0);
-  rows.forEach(t => byCat[t.category] = (byCat[t.category] || 0) + t.amount);
-  const max = Math.max(1, ...Object.values(byCat));
-  const left = db.budget ? db.budget - total : null;
-  document.getElementById("budget").value = db.budget || "";
-  document.getElementById("sumTotal").innerHTML =
-    `<div class="row"><span>이번 달 지출</span><b>${won(total)}</b></div>` +
-    (db.budget ? `<div class="row"><span>남은 한도</span><b class="${left<0?'neg':''}">${won(left)}</b></div>` : "");
-  document.getElementById("cats").innerHTML = CATS.map(c =>
+  const r = monthAgg(month);
+  const left = db.budget ? db.budget - r.spend : null;
+  const line = (k, v, cls = "", extra = "") =>
+    `<div class="row"><span>${k}${extra ? `<div class="sub">${extra}</div>` : ""}</span><span class="big ${cls}">${v}</span></div>`;
+  $("sumTotal").innerHTML =
+    line("수입", won(r.inc), "pos") +
+    line("지출", won(r.spend), "", `고정 ${won(r.fixed)} · 변동 ${won(r.vari)} · 환급 −${won(r.refund)}`) +
+    line("저축·투자", won(r.save), "acc") +
+    line("연금·노후", won(r.pension), "acc") +
+    line("저축률", r.rate === null ? "-" : Math.round(r.rate * 100) + "%", r.rate !== null && r.rate < 0 ? "neg" : "", "(수입 − 지출) ÷ 수입") +
+    line("잉여현금", won(r.surplus), r.surplus < 0 ? "neg" : "pos", "수입 − 지출 − 저축·투자 − 연금·노후") +
+    (db.budget ? line("생활비 한도 남은 금액", won(left), left < 0 ? "neg" : "") : "");
+
+  renderChart(r);
+  renderBudgets(r);
+
+  // 최근 6개월 추이
+  const data = [];
+  for(let i = 5; i >= 0; i--){ const m = shiftMonth(month, -i); data.push(Object.assign({m}, monthAgg(m))); }
+  const tmax = Math.max(1, ...data.map(d => Math.max(d.spend, d.inc)));
+  $("trend").innerHTML = data.map(d =>
     `<div class="row" style="display:block">
-       <div style="display:flex;justify-content:space-between"><span>${c}</span><span>${won(byCat[c])}</span></div>
-       <div class="bar"><div style="width:${Math.max(0, byCat[c]/max*100)}%"></div></div>
+       <div style="display:flex;justify-content:space-between;gap:8px">
+         <span>${Number(d.m.slice(5))}월${d.m === month ? " (선택)" : ""}</span>
+         <span class="sub">지출 ${won(d.spend)} · 수입 ${won(d.inc)}</span>
+       </div>
+       <div class="bar exp"><div style="width:${Math.max(0, d.spend/tmax*100)}%"></div></div>
+       <div class="bar inc"><div style="width:${Math.max(0, d.inc/tmax*100)}%"></div></div>
      </div>`).join("");
+}
+
+/* 항목별 지출: 큰 순서, 왼쪽 비중 %, 오른쪽 금액, 0원은 '-' */
+function renderChart(r){
+  $("monthBadge").textContent = Number(month.slice(5)) + "월";
+  const items = EXP_MAJORS.map(m => ({m, v: r.byMajor[m] || 0}))
+    .sort((a,b) => (b.v !== 0) - (a.v !== 0) || b.v - a.v);
+  const max = Math.max(1, ...items.map(x => x.v));
+  const total = r.spend;
+  $("chart").innerHTML = items.map(({m, v}) => {
+    if(v === 0) return `<div class="crow zero"><span class="lab">${esc(m)}</span><span class="pct">-</span><div class="ctrack"></div><span class="amt">-</span></div>`;
+    const pct = total > 0 ? Math.round(v / total * 100) + "%" : "-";
+    return `<div class="crow"><span class="lab">${esc(m)}</span><span class="pct">${pct}</span>
+      <div class="ctrack"><div style="width:${Math.max(0, v / max * 100)}%"></div></div>
+      <span class="amt ${v < 0 ? "neg" : ""}">${won(v)}</span></div>`;
+  }).join("") + `<div class="row" style="margin-top:4px"><span>총지출</span><span class="big">${won(total)}</span></div>`;
+}
+
+function budgetSpent(key, period){
+  const y = month.slice(0,4);
+  const r = period === "year" ? aggregate(t => t.date.slice(0,4) === y && ym(t.date) <= month) : monthAgg(month);
+  return key.includes(" > ") ? (r.byMinor[key] || 0) : (r.byMajor[key] || 0);
+}
+
+function renderBudgets(){
+  $("budget").value = db.budget || "";
+  const b = db.budgets || {};
+  const keys = Object.keys(b).filter(k => b[k] && b[k].amount > 0);
+  $("budgetStatus").innerHTML = keys.length ? keys.map(k => {
+    const {period, amount} = b[k];
+    const spent = budgetSpent(k, period);
+    const over = spent > amount;
+    return `<div class="row" style="display:block">
+      <div style="display:flex;justify-content:space-between;gap:8px">
+        <span>${esc(k)} <span class="tag">${period === "year" ? month.slice(0,4) + "년 누적" : "이번 달"}</span></span>
+        <span class="${over ? "neg" : ""}">${won(spent)} / ${won(amount)}</span>
+      </div>
+      <div class="bar ${over ? "over" : ""}"><div style="width:${Math.min(100, Math.max(0, spent / amount * 100))}%"></div></div>
+    </div>`;
+  }).join("") : '<div class="sub">설정된 대분류 예산이 없습니다.</div>';
+
+  $("budgetEdit").innerHTML = BUDGET_KEYS.map((k, i) => {
+    const cur = b[k] || {};
+    const p = cur.period || (YEARLY_DEFAULT.includes(k) ? "year" : "month");
+    return `<div class="bud"><span>${esc(k)}</span>
+      <select id="bud_p_${i}">${opt("month","월",p)}${opt("year","연",p)}</select>
+      <input type="number" inputmode="numeric" id="bud_a_${i}" value="${cur.amount || ""}" placeholder="금액"></div>`;
+  }).join("");
 }
 
 function renderAssets(){
@@ -280,35 +779,34 @@ function renderAssets(){
     html += `<div class="row">
       <div><div>${esc(acc)}</div>
       <div class="sub">${esc(last.date)} 기준${diff===null ? "" : " · 직전 대비 " + (diff>=0?"+":"") + won(diff)}</div></div>
-      <b>${won(last.amount)}</b></div>`;
+      <span class="big">${won(last.amount)}</span></div>`;
   }
-  document.getElementById("assetList").innerHTML = html
-    ? html + `<div class="row"><b>총 잔액 합계</b><b>${won(total)}</b></div>`
+  $("assetList").innerHTML = html
+    ? html + `<div class="row"><span>총 잔액 합계</span><span class="big">${won(total)}</span></div>`
     : '<div class="sub">등록된 계좌가 없습니다.</div>';
 }
 
-function render(){ renderList(); renderSummary(); renderAssets(); }
+function render(){ renderList(); renderSummary(); renderAssets(); refreshMerchantList(); }
 
 function show(t){
   tab = t;
   document.querySelectorAll("nav button").forEach(b => b.classList.toggle("on", b.dataset.t === t));
-  ["input","list","summary","assets"].forEach(id =>
-    document.getElementById(id).classList.toggle("hidden", id !== t));
+  ["input","list","summary","assets"].forEach(id => $(id).classList.toggle("hidden", id !== t));
   render();
 }
 
-/* 초기화 */
+/* ───────── 초기화 ───────── */
 month = ym(todayStr());
-document.getElementById("monthPick").value = month;
-document.getElementById("monthPick").onchange = e => { month = e.target.value; render(); };
-document.getElementById("f_date").value = todayStr();
-document.getElementById("a_date").value = todayStr();
-document.getElementById("f_cat").innerHTML = CATS.map(c => `<option>${c}</option>`).join("");
+$("monthPick").value = month;
+$("monthPick").onchange = e => { if(e.target.value){ month = e.target.value; render(); } };
+$("a_date").value = todayStr();
+resetForm();
+logMigration();
 
 /* 단축어 전달: #sms=... 해시로 받음 (해시는 서버로 전송되지 않음) */
 const hm = location.hash.match(/sms=([^&]*)/);
 if(hm){
-  try { document.getElementById("sms").value = decodeURIComponent(hm[1]); } catch(e){}
+  try { $("sms").value = decodeURIComponent(hm[1]); } catch(e){}
   history.replaceState(null, "", location.pathname);
   fillFromSms();
 }
