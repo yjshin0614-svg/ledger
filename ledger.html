@@ -166,10 +166,22 @@ function parseSms(text){
 function fillFromSms(){
   const p = parseSms(document.getElementById("sms").value);
   if(!p){ alert("금액을 찾지 못했습니다. 문자 내용을 확인해 주세요."); return; }
+
+  // 가맹점 별칭: 문자에 나온 이름 → 표시할 이름
+  const ALIAS = {
+    "(주)우아한형": "배민",
+    "우아한형제들": "배민",
+    "배달의민족": "배민"
+  };
+  let merchant = p.merchant;
+  for(const k in ALIAS){
+    if(merchant.includes(k)){ merchant = ALIAS[k]; break; }
+  }
+
   document.getElementById("f_date").value = p.date;
-  document.getElementById("f_merchant").value = p.merchant;
+  document.getElementById("f_merchant").value = merchant;
   document.getElementById("f_amount").value = p.amount;
-  document.getElementById("f_memo").value = "문자 자동입력";
+  document.getElementById("f_memo").value = "";   // 메모는 직접 입력하도록 빈칸
   document.getElementById("sms").value = "";
   show("input");
 }
